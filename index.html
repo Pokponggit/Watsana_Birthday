@@ -52,6 +52,7 @@
         }
         /* ขยับให้อยู่ตรงกลางเมื่อกางออก */
         .book.open { transform: translateX(calc(var(--book-w) / 2)); }
+        .book.closed-back { transform: translateX(var(--book-w)); }
 
         .page {
             width: 100%; height: 100%; position: absolute; top: 0; left: 0;
@@ -300,9 +301,10 @@
                         musicCover.pause();
                         musicInside.play().catch(e => console.log(e));
                     }
-                    // ถ้าปิดปกหลังแล้ว หุบหนังสือเข้ากลาง
+                    // ถ้าปิดปกหลังแล้ว หุบหนังสือเข้ากลางให้ตำแหน่งตรงกับปกหน้า
                     if (currentPage === pages.length) {
                         book.classList.remove('open');
+                        book.classList.add('closed-back');
                     }
                     currentPage++;
                 }
@@ -317,12 +319,11 @@
                     if (currentPage === 1) {
                         book.classList.remove('open');
                         musicInside.pause();
-                        // ถ้าอยากให้เพลงแรกเล่นต่อจากเดิมไม่ต้องใช้บรรทัดล่าง แต่ถ้าอยากให้เริ่มใหม่ให้เก็บไว้
-                        // musicCover.currentTime = 0; 
                         musicCover.play().catch(e => console.log(e));
                     }
-                    // ถ้าเปิดกลับมาจากปกหลัง กางหนังสือออก
+                    // ถ้าเปิดกลับมาจากปกหลัง กางหนังสือออกใหม่
                     if (currentPage === pages.length) {
+                        book.classList.remove('closed-back');
                         book.classList.add('open');
                     }
                 }
