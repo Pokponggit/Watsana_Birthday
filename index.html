@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Happy Birthday Album</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap');
+
+        body {
+            margin: 0; padding: 0; min-height: 100vh;
+            background-color: #E6F3FF; 
+            font-family: 'Prompt', sans-serif;
+            overflow: hidden; display: flex;
+            justify-content: center; align-items: center;
+        }
+
+        /* --- หน้าจอกดเริ่ม (จำเป็นต้องมีเพื่อปลดล็อกเสียง) --- */
+        #start-screen { 
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
+            background-color: #E6F3FF; display: flex; flex-direction: column; 
+            justify-content: center; align-items: center; z-index: 200; 
+            transition: opacity 0.5s ease; 
+        }
+        .start-btn { 
+            padding: 15px 50px; font-size: 1.5rem; font-family: 'Prompt', sans-serif; 
+            background-color: #FF7B9C; color: white; border: none; border-radius: 50px; 
+            cursor: pointer; box-shadow: 0 10px 20px rgba(255, 123, 156, 0.3); 
+            transition: transform 0.2s; animation: pulse 2s infinite; 
+        }
+        .start-btn:hover { transform: scale(1.05); }
+
+        /* --- คอนเทนเนอร์อัลบั้ม --- */
+        #album-container {
+            display: none; width: 100vw; height: 100vh;
+            justify-content: center; align-items: center;
+            perspective: 2500px;
+        }
+
+        /* ======================================================== */
+        /* ขยายขนาดหนังสือใหญ่ขึ้น 1 เท่าตัว (กว้าง 600px สูง 800px ต่อหน้า) */
+        /* ======================================================== */
+        :root {
+            --book-w: 600px; 
+            --book-h: 800px; 
+        }
+
+        .book {
+            width: var(--book-w); height: var(--book-h);
+            position: relative; transform-style: preserve-3d;
+            transition: transform 1s cubic-bezier(0.645, 0.045, 0.355, 1);
+        }
+        /* ขยับให้อยู่ตรงกลางเมื่อกางออก */
+        .book.open { transform: translateX(calc(var(--book-w) / 2)); }
+
+        .page {
+            width: 100%; height: 100%; position: absolute; top: 0; left: 0;
+            transform-origin: left center; transform-style: preserve-3d;
+            transition: transform 1.2s cubic-bezier(0.645, 0.045, 0.355, 1), z-index 0.1s;
+            cursor: pointer;
+        }
+        .page.flipped { transform: rotateY(-180deg); }
+
+        .front, .back {
+            position: absolute; width: 100%; height: 100%; top: 0; left: 0;
+            backface-visibility: hidden; -webkit-backface-visibility: hidden;
+            background-color: #fffafa; border-radius: 0 16px 16px 0;
+            box-shadow: inset 5px 0 20px rgba(0,0,0,0.05), 2px 5px 20px rgba(0,0,0,0.15);
+            display: flex; flex-direction: column; box-sizing: border-box;
+            border-left: 2px solid #ddd;
+        }
+        .back {
+            transform: rotateY(180deg); border-radius: 16px 0 0 16px;
+            border-left: none; border-right: 2px solid #ddd;
+            box-shadow: inset -5px 0 20px rgba(0,0,0,0.05), -2px 5px 20px rgba(0,0,0,0.15);
+        }
+
+        /* --- หน้าปก --- */
+        .cover {
+            background: linear-gradient(135deg, #FF7B9C, #ff5a82);
+            color: white; justify-content: center; align-items: center; text-align: center;
+            box-shadow: inset 5px 0 30px rgba(0,0,0,0.2), 10px 15px 30px rgba(0,0,0,0.4); border: none;
+        }
+        .back.cover { box-shadow: inset -5px 0 30px rgba(0,0,0,0.2), -10px 15px 30px rgba(0,0,0,0.4); }
+        .cover h1 { font-size: 4rem; margin: 0 0 15px 0; text-shadow: 2px 4px 8px rgba(0,0,0,0.2); line-height: 1.2; }
+        .cover p { font-size: 1.8rem; font-weight: 300; margin: 0; }
+
+        /* --- เค้าโครงหน้าซ้าย (รูปภาพเต็มตา) --- */
+        .photo-full {
+            width: 100%; height: 100%; padding: 30px; box-sizing: border-box;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .photo-full img {
+            width: 100%; height: 100%; object-fit: cover;
+            border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            border: 8px solid white; box-sizing: border-box; background: #eee;
+        }
+
+        /* --- เค้าโครงหน้าขวา (คำอวยพร + รายละเอียดด้านล่าง) --- */
+        .greeting-page {
+            display: flex; flex-direction: column; width: 100%; height: 100%;
+            padding: 50px 40px; box-sizing: border-box;
+        }
+        .text-main {
+            flex-grow: 1; display: flex; align-items: center; justify-content: center;
+            font-size: 2rem; text-align: center; color: #334E68; line-height: 1.6;
+        }
+        .text-detail {
+            height: 120px; border-top: 2px dashed #ffb3c6; padding-top: 20px;
+            font-size: 1.2rem; color: #777; text-align: center; font-style: italic;
+            display: flex; justify-content: center; align-items: flex-start;
+        }
+
+        /* --- ป้ายบอกการกดพลิกหน้า --- */
+        .hint { position: absolute; bottom: 20px; right: 25px; font-size: 1.1rem; color: #aaa; animation: pulse 2s infinite; }
+        .hint-left { position: absolute; bottom: 20px; left: 25px; font-size: 1.1rem; color: #aaa; animation: pulse 2s infinite; }
+        .cover .hint, .cover .hint-left { color: rgba(255,255,255,0.8); }
+
+        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+
+        /* --- Responsive ย่อส่วนลงถ้าหน้าจอเล็ก --- */
+        @media (max-width: 1300px) {
+            :root { --book-w: 45vw; --book-h: 65vw; }
+            .text-main { font-size: 1.5rem; } .text-detail { font-size: 1rem; }
+            .cover h1 { font-size: 3rem; } .cover p { font-size: 1.3rem; }
+        }
+        @media (max-width: 768px) {
+            :root { --book-w: 48vw; --book-h: 70vw; }
+            .greeting-page { padding: 20px; }
+            .photo-full { padding: 15px; }
+            .text-main { font-size: 1.1rem; } .text-detail { font-size: 0.8rem; height: 80px; }
+            .cover h1 { font-size: 2rem; } .cover p { font-size: 1rem; }
+            .hint, .hint-left { font-size: 0.8rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <audio id="music-cover" src="song1.mp3" loop preload="auto"></audio>
+    <audio id="music-inside" src="song2_2.mp3" loop preload="auto"></audio>
+
+    <div id="start-screen">
+        <button class="start-btn" onclick="startExperience()">กดเพื่อรับของขวัญจาก ปกป้อง</button>
+    </div>
+
+    <div id="album-container">
+        <div class="book" id="book">
+            
+            <div class="page" id="p1">
+                <div class="front cover" onclick="flip('next')">
+                    <h1>Happy<br>Birthday</h1>
+                    <p>To คุณวาสนา <br>- Who's Always Be My Favorite Person -</p>
+                    <div class="hint">เปิดเล่ม </div>
+                </div>
+                <div class="back" onclick="flip('prev')">
+                    <div class="photo-full"><img src="photo1.jpg" alt="Photo 1"></div>
+                    <div class="hint-left"> ปิดปก</div>
+                </div>
+            </div>
+
+            <div class="page" id="p2">
+                <div class="front greeting-page" onclick="flip('next')">
+                    <div class="text-main">สุขสันต์วันเกิดนะ!<br>ขอให้ปีนี้เป็นปีที่น่ารักสำหรับฟ้านะ</div>
+                    <div class="text-detail">📍 ฉิงเต่าครั้งแรกของเราเลย<br>รอยยิ้มของฟ้านี่สวยตลอดเลยเนอะ</div>
+                    <div class="hint">ถัดไป </div>
+                </div>
+                <div class="back" onclick="flip('prev')">
+                    <div class="photo-full"><img src="photo2.jpg" alt="Photo 2"></div>
+                    <div class="hint-left"> ย้อนกลับ</div>
+                </div>
+            </div>
+
+            <div class="page" id="p3">
+                <div class="front greeting-page" onclick="flip('next')">
+                    <div class="text-main">ขอให้ปีนี้เป็นปีที่ฟ้าได้ทำในสิ่งที่อยากทำ<br>และเจอความสุขในแบบที่ฟ้าตามหานะ</div>
+                    <div class="text-detail">📍 ทริปเขาใหญ่ครั้งแรกกก<br>วันนั้นก็สนุกสุดๆเลย ถึงจะไปไม่ตรบตามที่ฟ้าอยากไปก็เถอะ</div>
+                    <div class="hint">ถัดไป </div>
+                </div>
+                <div class="back" onclick="flip('prev')">
+                    <div class="photo-full"><img src="photo3.jpg" alt="Photo 3"></div>
+                    <div class="hint-left"> ย้อนกลับ</div>
+                </div>
+            </div>
+
+            <div class="page" id="p4">
+                <div class="front greeting-page" onclick="flip('next')">
+                    <div class="text-main">คิดสิ่งใดก็ขอให้สมปรารถนา<br>ถ้าเหนื่อยก็พักบ้างนะ</div>
+                    <div class="text-detail">สวยทุกมุมตลอดเลยเนอะ<br>โดยเฉพาะมุมนี้ แก้มน่าบีบสุดๆๆๆๆ</div>
+                    <div class="hint">ถัดไป </div>
+                </div>
+                <div class="back" onclick="flip('prev')">
+                    <div class="photo-full"><img src="photo4.jpg" alt="Photo 4"></div>
+                    <div class="hint-left"> ย้อนกลับ</div>
+                </div>
+            </div>
+
+            <div class="page" id="p5">
+                <div class="front greeting-page" onclick="flip('next')">
+                    <div class="text-main">ขอบคุณรอยยิ้มที่สดใสที่เคยมีให้เค้าเสมอนะ ยิ้มเยอะๆ ล่ะ!</div>
+                    <div class="text-detail">ยืนยันคำเดิมว่าเค้าชอบเวลาที่ฟ้ายิ้มนะ</div>
+                    <div class="hint">ถัดไป </div>
+                </div>
+                <div class="back" onclick="flip('prev')">
+                    <div class="photo-full"><img src="photo5.jpg" alt="Photo 5"></div>
+                    <div class="hint-left"> ย้อนกลับ</div>
+                </div>
+            </div>
+
+            <div class="page" id="p6">
+                <div class="front greeting-page" onclick="flip('next')">
+                    <div class="text-main">ไม่ได้ไปนวดให้แล้วนะ<br>ขอให้เป็นคุณพยาบาลที่ไม่เหนื่อย<br>ไม่ปวดหลังนะ</div>
+                    <div class="text-detail">🌷 ดอกไม้ช่อนี้มันเหี่ยวไม่หน่อยเนาะ</div>
+                    <div class="hint">ถัดไป </div>
+                </div>
+                <div class="back" onclick="flip('prev')">
+                    <div class="photo-full"><img src="photo6.jpg" alt="Photo 6"></div>
+                    <div class="hint-left"> ย้อนกลับ</div>
+                </div>
+            </div>
+
+            <div class="page" id="p7">
+                <div class="front greeting-page" onclick="flip('next')">
+                    <div class="text-main">ขอให้เจอแต่สิ่งดีๆ คนดีๆ ตลอดเลยนะ<br>ขอให้ไม่เจอะไรที่ทำให้ฟ้าต้องเสียใจ</div>
+                    <div class="text-detail">วันนี้ก็สวยมากๆ อีกวันนึงเลยนะ</div>
+                    <div class="hint">ถัดไป </div>
+                </div>
+                <div class="back" onclick="flip('prev')">
+                    <div class="photo-full"><img src="photo7.jpg" alt="Photo 7"></div>
+                    <div class="hint-left"> ย้อนกลับ</div>
+                </div>
+            </div>
+
+            <div class="page" id="p8">
+                <div class="front greeting-page" onclick="flip('next')">
+                    <div class="text-main">ถ้าวันไหนต้องการความช่วยเหลืออะไร<br>เค้าจะอยู่ตรงนี้เสมอเลยนะ<br>ไม่ต้องเกรงใจ!!!</div>
+                    <div class="text-detail">ส่วนหม่อนครั้งสุดท้ายยย 🥓</div>
+                    <div class="hint">ถัดไป </div>
+                </div>
+                <div class="back" onclick="flip('prev')">
+                    <div class="photo-full"><img src="photo8.jpg" alt="Photo 8"></div>
+                    <div class="hint-left"> ย้อนกลับ</div>
+                </div>
+            </div>
+
+            <div class="page" id="p9">
+                <div class="front greeting-page" onclick="flip('next')">
+                    <div class="text-main">หน้าสุดท้ายแล้ว เค้าอยากบอกฟ้าว่า<br>เค้าจะคอยเป็นกำลังใจให้ฟ้าจากตรงนี้เสมอเลยนะ Happy Birthday! 🎂</div>
+                    <div class="text-detail">หวังว่าจะชอบนะ ฝากดูแลลิลลี่ดีๆด้วยนะ<br>ตุ๊กตาตัวแรกและตัวเดียวที่เค้าได้ซื้อให้!!!</div>
+                    <div class="hint">ปิดเล่ม </div>
+                </div>
+                <div class="back cover" onclick="flip('prev')">
+                    <h1>The End.</h1>
+                    <p>❤️</p>
+                    <div class="text-detail">ถ้าอ่านมาถึงหน้านี้ เค้าอยากบอกว่า<br>ขอบคุณนะที่เคยเป็นรอยยิ้มในทุกวันของเค้า<br>ถึงเค้าจะไม่ได้มีโอกาสในจุดนั้นอีกแล้วก็เถอะ<br>แล้วก็หวังว่าจะไม่ลืมกันไปก่อนล่ะจาก...ปกป้อง</div>
+                    <div class="hint-left"> เปิดดูอีกรอบ</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const musicCover = document.getElementById('music-cover');
+        const musicInside = document.getElementById('music-inside');
+
+        // ฟังก์ชันเข้าเว็บปุ๊บ เล่นเพลง 1 ปั๊บ
+        function startExperience() {
+            const startScreen = document.getElementById('start-screen');
+            const albumContainer = document.getElementById('album-container');
+            
+            startScreen.style.opacity = '0';
+            musicCover.play().catch(e => console.log(e));
+
+            setTimeout(() => {
+                startScreen.style.display = 'none';
+                albumContainer.style.display = 'flex';
+            }, 500);
+        }
+
+        // ระบบพลิกหน้าหนังสือ 9 หน้า
+        let currentPage = 1;
+        const pages = document.querySelectorAll('.page');
+        const book = document.getElementById('book');
+
+        // เรียง Z-index
+        pages.forEach((page, index) => {
+            page.style.zIndex = pages.length - index;
+        });
+
+        function flip(direction) {
+            if (direction === 'next') {
+                if (currentPage <= pages.length) {
+                    const page = document.getElementById('p' + currentPage);
+                    page.classList.add('flipped');
+                    page.style.zIndex = currentPage; 
+
+                    // ถ้าเพิ่งเปิดหน้าปก ให้เปลี่ยนจากเพลง 1 เป็น เพลง 2
+                    if (currentPage === 1) {
+                        book.classList.add('open');
+                        musicCover.pause();
+                        musicInside.play().catch(e => console.log(e));
+                    }
+                    // ถ้าปิดปกหลังแล้ว หุบหนังสือเข้ากลาง
+                    if (currentPage === pages.length) {
+                        book.classList.remove('open');
+                    }
+                    currentPage++;
+                }
+            } else if (direction === 'prev') {
+                if (currentPage > 1) {
+                    currentPage--;
+                    const page = document.getElementById('p' + currentPage);
+                    page.classList.remove('flipped');
+                    page.style.zIndex = pages.length - currentPage + 1;
+
+                    // ถ้าปิดกลับมาถึงปกหน้าสุด ให้เปลี่ยนกลับไปเล่นเพลง 1
+                    if (currentPage === 1) {
+                        book.classList.remove('open');
+                        musicInside.pause();
+                        // ถ้าอยากให้เพลงแรกเล่นต่อจากเดิมไม่ต้องใช้บรรทัดล่าง แต่ถ้าอยากให้เริ่มใหม่ให้เก็บไว้
+                        // musicCover.currentTime = 0; 
+                        musicCover.play().catch(e => console.log(e));
+                    }
+                    // ถ้าเปิดกลับมาจากปกหลัง กางหนังสือออก
+                    if (currentPage === pages.length) {
+                        book.classList.add('open');
+                    }
+                }
+            }
+        }
+    </script>
+
+</body>
+</html>
